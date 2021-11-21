@@ -7,12 +7,13 @@ use std::io::{Write, BufWriter};
 use std::ops::MulAssign;
 use std::vec;
 
-const PIXELS_PER_UNIT: i32 = 100;
-const PX_WIDTH: i32            = 8 * PIXELS_PER_UNIT;
-const PX_HEIGHT: i32           = 6 * PIXELS_PER_UNIT;
-const MAX_X: i32               = PX_WIDTH / 2;
-const MAX_Y: i32               = PX_HEIGHT / 2;
-const STEPS: i32            = 20;
+const PIXELS_PER_UNIT: i32 = 1000;
+const PX_WIDTH: i32        = 8 * PIXELS_PER_UNIT;
+const PX_HEIGHT: i32       = 6 * PIXELS_PER_UNIT;
+const STEPS: i32           = 20;
+
+const MAX_X: i32  = PX_WIDTH / 2;
+const MAX_Y: i32  = PX_HEIGHT / 2;
 const SQRT_3: f32 = 1.732050;
 
 const ROOTS: &[Complex<f32>] =
@@ -78,16 +79,12 @@ impl Polynom {
         res
     }
 
-    fn from_root(root: Complex<f32>) -> Polynom {
-        Polynom{cs:vec![Complex::new(1.0, 0.0), -root]}
-    }
-
     fn from_roots() -> Polynom {
         let mut pol = Polynom{
             cs:vec![Complex::new(1.0, 0.0)]
         };
-        for i in 0..ROOTS.len() {
-            pol *= Polynom::from_root(ROOTS[i]);
+        for root in ROOTS.iter() {
+            pol *= Polynom{cs:vec![Complex::new(1.0, 0.0), -root]}
         }
         pol
     }
@@ -106,27 +103,25 @@ fn between(x: f32, a: f32, b: f32) -> bool {
     x >= a && x <= b
 }
 
-fn distance(a: &Complex<f32>, b: &Complex<f32>) -> f32 {
-    let d = b-a;
-    (d.re.powi(2) + d.im.powi(2)).sqrt()
-}
-
-fn try_point(pol: &Polynom, der: &Polynom, c: Complex<f32>) -> usize {
-    let mut cur = c;
+fn get_color(pol: &Polynom, der: &Polynom, ic: Complex<f32>) -> Pixel {
+    let mut c = ic;
     for _ in 0..STEPS {
-        let (yp, yd) = (pol.at(cur), der.at(cur));
-        if yd == Complex::zero() || cur.is_nan() {
+        let (yp, yd) = (pol.at(c), der.at(c));
+        if yd == Complex::zero() || c.is_nan() {
             break;
         }
-        let nc = cur - yp / yd;
+        c = c - yp / yd;
         for i in 0..ROOTS.len() {
-            if ROOTS[i] == nc {
-                return i as usize
+            if ROOTS[i] == c {
+                return COLORS[i]
             }
         }
-        cur = nc;
     }
-    let dists: Vec<f32> = ROOTS.iter().map(|r| {distance(&cur, &r)}).collect();
+
+    let dists: Vec<f32> =
+            ROOTS.iter()
+            .map(|r| {(c - r).norm()})
+            .collect();
     let mut index = 0;
     let mut min = dists.first().unwrap();
     for i in 1..dists.len() {
@@ -135,7 +130,7 @@ fn try_point(pol: &Polynom, der: &Polynom, c: Complex<f32>) -> usize {
             index = i;
         }
     }
-    index
+    COLORS[index]
 }
 
 fn write_ppm(s: &mut impl Write, canv: &Vec<Pixel>) -> io::Result<()> {
@@ -165,16 +160,17 @@ fn main() -> io::Result<()> {
     println!("Pol: {}", pol);
     println!("Der: {}", der);
 
-    let mut canvas: Vec<Pixel> = Vec::with_capacity((PX_WIDTH * PX_HEIGHT) as usize);
+    let mut canvas = Vec::with_capacity((PX_WIDTH * PX_HEIGHT) as usize);
     canvas.resize((PX_WIDTH * PX_HEIGHT) as usize, 0);
-    for y in -MAX_Y..MAX_Y {
-        for x in -MAX_X..MAX_X {
-            let px = x as f32 / PIXELS_PER_UNIT as f32;
-            let py = y as f32 / PIXELS_PER_UNIT as f32;
-            let c = try_point(&pol, &der, Complex::new(px as f32, py as f32));
-            canvas[((y + MAX_Y) * PX_WIDTH + (MAX_X + x)) as usize] = COLORS[c]
+    for y in 0..PX_HEIGHT {
+        for x in 0..PX_WIDTH {
+            let cx = (x - MAX_X) as f32 / PIXELS_PER_UNIT as f32;
+            let cy = (y - MAX_Y) as f32 / PIXELS_PER_UNIT as f32;
+            let col = get_color(&pol, &der, Complex::new(cx as f32, cy as f32));
+            canvas[(y * PX_WIDTH + x) as usize] = col
         }
     }
+
     let mut of = BufWriter::new(File::create("img.ppm")?);
     write_ppm(&mut of, &canvas)?;
     Ok(())
