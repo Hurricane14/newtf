@@ -7,7 +7,7 @@ use std::io::{Write, BufWriter};
 use std::ops::MulAssign;
 use std::vec;
 
-const PIXELS_PER_UNIT: i32 = 1000;
+const PIXELS_PER_UNIT: i32 = 100;
 const PX_WIDTH: i32        = 8 * PIXELS_PER_UNIT;
 const PX_HEIGHT: i32       = 6 * PIXELS_PER_UNIT;
 const STEPS: i32           = 20;
@@ -146,13 +146,15 @@ fn write_ppm(s: &mut impl Write, canv: &Vec<Pixel>) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    assert!(ROOTS.len() != 0);
-    assert!(ROOTS.len() <= COLORS.len());
+    assert!(ROOTS.len() != 0, "No roots specified");
+    assert!(ROOTS.len() <= COLORS.len(), "Not enough colors to mark all roots");
     for root in ROOTS.iter() {
         let mx = MAX_X as f32 / PIXELS_PER_UNIT as f32;
         let my = MAX_Y as f32 / PIXELS_PER_UNIT as f32;
-        assert!(between(root.re, -mx, mx));
-        assert!(between(root.im, -my, my));
+        assert!(between(root.re, -mx, mx),
+                "Root {} is out of image bounds", root);
+        assert!(between(root.im, -my, my),
+                "Root {} is out of image bounds", root);
     }
     let pol = Polynom::from_roots();
     let der = pol.derivative();
