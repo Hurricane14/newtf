@@ -49,8 +49,7 @@ struct Polynom {
 impl MulAssign<Polynom> for Polynom {
     fn mul_assign(&mut self, rhs: Polynom) {
         let len = self.cs.len() - 1 + rhs.cs.len() - 1 + 1;
-        let mut res = Polynom{cs:Vec::with_capacity(len)};
-        res.cs.resize(len, Complex::zero());
+        let mut res = Polynom{cs:vec![Complex::zero(); len]};
         for i in 0..self.cs.len() {
             for j in 0..rhs.cs.len() {
                 res.cs[i+j] += self.cs[i] * rhs.cs[j];
@@ -160,8 +159,7 @@ fn main() -> io::Result<()> {
     println!("Pol: {}", pol);
     println!("Der: {}", der);
 
-    let mut canvas = Vec::with_capacity((PX_WIDTH * PX_HEIGHT) as usize);
-    canvas.resize((PX_WIDTH * PX_HEIGHT) as usize, 0);
+    let mut canvas = vec![0 as Pixel; (PX_WIDTH * PX_HEIGHT) as usize];
     for y in 0..PX_HEIGHT {
         for x in 0..PX_WIDTH {
             let cx = (x - MAX_X) as f32 / PIXELS_PER_UNIT as f32;
